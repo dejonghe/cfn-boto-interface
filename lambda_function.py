@@ -59,8 +59,8 @@ class CfnBotoInterface(object):
             logger.info("Method: {}".format(method))
             arguments = event['ResourceProperties'][action]['Arguments']
             logger.info("Arguments: {}".format(arguments))
-            physical_id_path = event['ResourceProperties'].get('PhysicalIdAttribute',None)
-            logger.info("PhysicalIdAttribture: {}".format(physical_id_path))
+            self.physical_id_path = event['ResourceProperties'].get('PhysicalIdAttribute',None)
+            logger.info("PhysicalIdAttribture: {}".format(self.physical_id_path))
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
@@ -111,7 +111,7 @@ class CfnBotoInterface(object):
         return self.buff
                 
     def send_status(self, PASS_OR_FAIL):
-        if physical_id_path:
+        if self.physical_id_path:
             traverse_modify(self.response_data,self.physical_id_path,self.set_buffer)
         else: 
             self.buff = 'None'
