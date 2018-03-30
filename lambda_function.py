@@ -5,7 +5,7 @@ import boto3
 import json
 import logging
 from cfnresponse import send, SUCCESS, FAILED
-from helper import traverse_find, traverse_modify
+from helper import traverse_find, traverse_modify, json_serial
 
 # Setup logger
 logger = logging.getLogger()
@@ -84,7 +84,7 @@ class CfnBotoInterface(object):
             self.client = session.client(client_type)
             logger.info('Running...')
             # This is the main call it calls the method, on the client, with the arguments
-            self.response_data = json.dumps(getattr(self.client,method)(**arguments))
+            self.response_data = json.dumps(getattr(self.client,method)(**arguments),default=json_serial)
             logger.info("Response: {}".format(self.response_data))
             if not isinstance(context,test_context):
                 # Success! 
@@ -130,17 +130,22 @@ if __name__ == "__main__":
     parser.add_argument("-e","--event", help="Event object passed from CFN.", default={
         'RequestType': 'Delete', 
         'ResourceProperties': { 
-            'Service': 's3',
-            'CREATE': {
-                'Method': 'create_bucket',
+            'Service': 'ec2',
+            'Create': {
+                'Method': 'create_launch_template',
                 'Arguments': {
-                    'Bucket': 'cfnbotointerface'
+                    'LaunchTemplateName': 'TestingTemplate',
+                    'LaunchTemplateData': {
+                        'ImageId': 'ami-cb17d8b6',
+                        'InstanceType': 't2.large',
+                        'KeyName': 'common-us-east-1'
+                    }
                 }
             },
-            'DELETE': {
-                'Method': 'delete_bucket',
+            'Delete': {
+                'Method': 'delete_launch_template',
                 'Arguments': {
-                    'Bucket': 'cfnbotointerface'
+                    'LaunchTemplateName': 'TestingTemplate',
                 }
             },
             'Other': '!event.OldResourceProperties.Value'

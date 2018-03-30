@@ -1,5 +1,7 @@
+from datetime import date, datetime
+
 ####
-# This was taken, and adapted slightly from nvie.com blog:
+# The recursion and traversal was taken, and adapted slightly from nvie.com blog:
 # http://nvie.com/posts/modifying-deeply-nested-structures/
 ######
 def traverse(obj, path=None, callback=None):
@@ -72,3 +74,11 @@ def to_path(path):
             yield []
 
     return list(_iter_path(path))[:-1]
+
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))
