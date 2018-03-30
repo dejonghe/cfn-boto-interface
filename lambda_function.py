@@ -84,7 +84,7 @@ class CfnBotoInterface(object):
             self.client = session.client(client_type)
             logger.info('Running...')
             # This is the main call it calls the method, on the client, with the arguments
-            self.response_data = json.dumps(getattr(self.client,method)(**arguments),default=json_serial)
+            self.response_data = json.loads(json.dumps(getattr(self.client,method)(**arguments),default=json_serial))
             logger.info("Response: {}".format(self.response_data))
             if not isinstance(context,test_context):
                 # Success! 
