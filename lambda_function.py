@@ -119,7 +119,7 @@ class CfnBotoInterface(object):
             self.raw_data,
             self.context,
             PASS_OR_FAIL,
-            PhysicalResourceId=self.buff,
+            physical_resource_id=self.buff,
             reason=self.reason,
             response_data=self.response_data
         )
