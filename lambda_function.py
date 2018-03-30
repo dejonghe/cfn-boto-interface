@@ -2,6 +2,7 @@
 
 import argparse
 import boto3 
+import json
 import logging
 from cfnresponse import send, SUCCESS, FAILED
 from helper import traverse_find, traverse_modify
@@ -33,8 +34,8 @@ class CfnBotoInterface(object):
     a lambda event and context. This object allows for 
     a direct interface to the AWS API through the Boto3 SDK
     to CloudFormation. You're able to define in your CFN
-    Custom Resource properties for each case, CREATE, UPDATE,
-    and DELETE. All three of which are to set the same defined
+    Custom Resource properties for each case, Create, Update,
+    and Delete. All three of which are to set the same defined
     boto3 client. Each action object has two attributes
     method, and arguments. 
     '''
@@ -83,7 +84,7 @@ class CfnBotoInterface(object):
             self.client = session.client(client_type)
             logger.info('Running...')
             # This is the main call it calls the method, on the client, with the arguments
-            self.response_data = getattr(self.client,method)(**arguments)
+            self.response_data = json.dumps(getattr(self.client,method)(**arguments))
             logger.info("Response: {}".format(self.response_data))
             if not isinstance(context,test_context):
                 # Success! 
@@ -125,9 +126,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Lambda Function to provide pass through interface to CloudFormation.')
     parser.add_argument("-r","--region", help="Region in which to run.", default='us-east-1')
     parser.add_argument("-p","--profile", help="Profile name to use when connecting to aws.", default=None)
-    parser.add_argument("-m","--method_override", help="Method Type Override.", default=None, choices=[None,'CREATE','UPDATE','DELETE'])
+    parser.add_argument("-m","--method_override", help="Method Type Override.", default=None, choices=[None,'Create','Update','Delete'])
     parser.add_argument("-e","--event", help="Event object passed from CFN.", default={
-        'RequestType': 'DELETE', 
+        'RequestType': 'Delete', 
         'ResourceProperties': { 
             'Service': 's3',
             'CREATE': {
