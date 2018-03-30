@@ -26,21 +26,21 @@ Not shown in this example, you can use !event.OldResourceProperties.Instances[].
       "Type": "Custom::NumberAzs",
       "Properties": {
         "ServiceToken": { "Ref": "BotoInterface" }
-        'Service': 's3',
-        'CREATE': {
-          'Method': 'create_bucket',
-          'Arguments': {
-            'Bucket': 'cfnbotointerface'
+        "Service": "s3",
+        "CREATE": {
+          "Method": "create_bucket",
+          "Arguments": {
+            "Bucket": "cfnbotointerface"
           }
         },
-        'DELETE': {
-          'Method': 'delete_bucket',
-          'Arguments': {
-            'Bucket': 'cfnbotointerface'
+        "DELETE": {
+          "Method": "delete_bucket",
+          "Arguments": {
+            "Bucket": "cfnbotointerface"
           }
         },
-        'UPDATE': {
-          'Method': 'update_bucket'
+        "UPDATE": {
+          "Method": "update_bucket"
         }
       }
     }
