@@ -1,1 +1,1 @@
-cfn-response==0.0.3
+cfn-response==0.0.4

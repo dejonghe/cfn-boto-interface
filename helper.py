@@ -1,3 +1,5 @@
+import random
+import string
 from datetime import date, datetime
 
 ####
@@ -81,4 +83,16 @@ def json_serial(obj):
 
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
+    if isinstance(obj, None):
+        return 'None'
     raise TypeError ("Type %s not serializable" % type(obj))
+
+# Trims prefix
+def remove_prefix(text, prefix):
+    return text[text.startswith(prefix) and len(prefix):]
+
+# Injects random alphanumeric into value where trigger is found
+def inject_rand(text, trigger):
+    while trigger in text:
+        text = text.replace(trigger,''.join(random.choices(string.ascii_uppercase + string.digits, k=4)),1)
+    return text

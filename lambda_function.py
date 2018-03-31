@@ -1,11 +1,11 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.6
 
 import argparse
 import boto3 
 import json
 import logging
 from cfnresponse import send, SUCCESS, FAILED
-from helper import traverse_find, traverse_modify, json_serial
+from helper import traverse_find, traverse_modify, json_serial, remove_prefix, inject_rand
 
 # Setup logger
 logger = logging.getLogger()
@@ -42,7 +42,8 @@ class CfnBotoInterface(object):
     reason = None
     response_data = {}
     buff = None
-    prefix = '!event.'
+    prefix_event = '!event.'
+    prefix_random = '!random'
 
     # Initializes the object
     def __init__(self,event,context):
@@ -70,9 +71,10 @@ class CfnBotoInterface(object):
                 logger.info(self.reason)
             return
         try:
-            # This is a call to a helper function which templates out the arguments
-            self.data = traverse_find(self.raw_data,self.prefix,self.template)
-            logger.debug("Templated Event: {}".format(self.data))
+            # This is a set of calls to helper functions which templates out the arguments
+            self.data = traverse_find(self.raw_data,self.prefix_random,self.interpolate_rand)
+            self.data = traverse_find(self.data,self.prefix_event,self.template)
+            logger.info("Templated Event: {}".format(self.data))
             if isinstance(context,test_context):
                 # For testing use profile and region from test_context
                 logger.debug('Using test_context')
@@ -106,9 +108,14 @@ class CfnBotoInterface(object):
         self.buff = value
 
     def template(self, value):
-        value = remove_prefix(value,self.prefix)
+        value = remove_prefix(value,self.prefix_event)
         traverse_modify(self.raw_data,value,self.set_buffer)
         return self.buff
+
+    def interpolate_rand(self, value):
+        withrand = inject_rand(value,self.prefix_random)
+        logger.info("WithRand returned: {}".format(withrand))
+        return withrand
                 
     def send_status(self, PASS_OR_FAIL):
         if self.physical_id_path:
@@ -155,7 +162,8 @@ if __name__ == "__main__":
                     'LaunchTemplateName': 'TestingTemplate',
                 }
             },
-            'Other': '!event.OldResourceProperties.Value'
+            'OtherEvent': '!event.OldResourceProperties.Value',
+            'OtherRand': '!random.OldResourceProperties.Value-!random.something'
         },
         'OldResourceProperties': {
             'Value':'Thing'
