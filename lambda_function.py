@@ -127,6 +127,7 @@ class CfnBotoInterface(object):
     def variable_fetch(self, value):
         value = remove_prefix(value,"!{}.".format(self.current_var_fetch))
         mod, value = return_modifier(value)
+        logger.info("Modifier: {}".format(mod))
         traverse_modify(self.response_data[self.current_var_fetch],value,self.set_buffer)
         if mod:
             return convert(self.buff,mod)
