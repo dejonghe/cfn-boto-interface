@@ -63,6 +63,7 @@ class CfnBotoInterface(object):
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
+            logger.info(self.reason)
             if self.context:
                 self.send_status(FAILED)
             else:
@@ -110,6 +111,7 @@ class CfnBotoInterface(object):
                 logger.info(self.response_data)
         except Exception as e:
             self.reason = "Failed: {}".format(e)
+            logger.info(self.reason)
             if not isinstance(context,test_context):
                 self.send_status(FAILED)
             else:
