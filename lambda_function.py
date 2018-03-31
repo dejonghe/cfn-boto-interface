@@ -5,7 +5,7 @@ import boto3
 import json
 import logging
 from cfnresponse import send, SUCCESS, FAILED
-from helper import traverse_find, traverse_modify, json_serial, remove_prefix, inject_rand
+from helper import traverse_find, traverse_modify, json_serial, remove_prefix, inject_rand, return_modifier, convert
 
 # Setup logger
 logger = logging.getLogger()
@@ -56,12 +56,10 @@ class CfnBotoInterface(object):
             logger.info("Action: {}".format(action))
             client_type = event['ResourceProperties']['Service']
             logger.info("Client: {}".format(client_type))
-            method = event['ResourceProperties'][action]['Method']
-            logger.info("Method: {}".format(method))
-            arguments = event['ResourceProperties'][action]['Arguments']
-            logger.info("Arguments: {}".format(arguments))
             self.physical_id_path = event['ResourceProperties'].get('PhysicalIdAttribute',None)
-            logger.info("PhysicalIdAttribture: {}".format(self.physical_id_path))
+            logger.info("PhysicalIdAttribute: {}".format(self.physical_id_path))
+            self.commands = event['ResourceProperties'][action]
+            logger.info("Commands: {}".format(self.commands))
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
@@ -87,9 +85,23 @@ class CfnBotoInterface(object):
             # Setup the client requested
             self.client = session.client(client_type)
             logger.info('Running...')
-            # This is the main call it calls the method, on the client, with the arguments
-            self.response_data = json.loads(json.dumps(getattr(self.client,method)(**arguments),default=json_serial))
-            logger.info("Response: {}".format(self.response_data))
+            # This is the main call it calls the methods, on the client, with the arguments
+            count = 0
+            while count < len(self.commands):
+                if count != 0:
+                    logger.info('trav-find')
+                    self.current_var_fetch = place_holder
+                    self.commands = traverse_find(self.commands,"!{}".format(self.current_var_fetch),self.variable_fetch)
+                    logger.info(self.commands)
+                command = self.commands[count]
+                place_holder = "{}[{}]".format(action,count)
+                method = command['Method']
+                logger.info("Method: {}".format(method))
+                arguments = command['Arguments']
+                logger.info("Arguments: {}".format(arguments))
+                self.response_data[place_holder] = json.loads(json.dumps(getattr(self.client,method)(**arguments),default=json_serial))
+                logger.info("Response: {}".format(self.response_data))
+                count = count + 1
             if not isinstance(context,test_context):
                 # Success! 
                 self.send_status(SUCCESS)
@@ -110,6 +122,14 @@ class CfnBotoInterface(object):
     def template(self, value):
         value = remove_prefix(value,self.prefix_event)
         traverse_modify(self.raw_data,value,self.set_buffer)
+        return self.buff
+
+    def variable_fetch(self, value):
+        value = remove_prefix(value,"!{}.".format(self.current_var_fetch))
+        mod, value = return_modifier(value)
+        traverse_modify(self.response_data[self.current_var_fetch],value,self.set_buffer)
+        if mod:
+            return convert(self.buff,mod)
         return self.buff
 
     def interpolate_rand(self, value):
@@ -145,25 +165,52 @@ if __name__ == "__main__":
         'RequestType': 'Delete', 
         'ResourceProperties': { 
             'Service': 'ec2',
-            'Create': {
-                'Method': 'create_launch_template',
-                'Arguments': {
-                    'LaunchTemplateName': 'TestingTemplate',
-                    'LaunchTemplateData': {
-                        'ImageId': 'ami-cb17d8b6',
-                        'InstanceType': 't2.large',
-                        'KeyName': 'common-us-east-1'
+            'Create': [
+                {
+                    'Method': 'create_launch_template',
+                    'Arguments': {
+                        'LaunchTemplateName': 'TestingTemplate',
+                        'LaunchTemplateData': {
+                            'ImageId': 'ami-cb17d8b6',
+                            'InstanceType': 't2.large',
+                            'KeyName': 'common-us-east-1'
+                        }
                     }
                 }
-            },
-            'Delete': {
-                'Method': 'delete_launch_template',
-                'Arguments': {
-                    'LaunchTemplateName': 'TestingTemplate',
+            ],
+            'Update': [
+                {
+                    'Method': 'create_launch_template_version',
+                    'Arguments': {
+                        'LaunchTemplateName': 'TestingTemplate',
+                        'SourceVersion': '1',
+                        'LaunchTemplateData': {
+                            'InstanceType': 't2.medium'
+                        }
+                    }
+                },
+                {
+                    'Method': 'modify_launch_template',
+                    'Arguments': {
+                        'LaunchTemplateName': 'TestingTemplate',
+                        'DefaultVersion': '!Update[0].!str.LaunchTemplateVersion.VersionNumber'
+                    }
                 }
-            },
-            'OtherEvent': '!event.OldResourceProperties.Value',
-            'OtherRand': '!random.OldResourceProperties.Value-!random.something'
+            ],
+            'Delete': [
+                {
+                    'Method': 'delete_launch_template',
+                    'Arguments': {
+                        'LaunchTemplateName': 'TestingTemplate',
+                    }
+                }
+            ],
+            'OtherEvent': [
+                 {'Method': '!event.OldResourceProperties.Value'}
+            ],
+            'OtherRand': [ 
+                 {'!random.OldResourceProperties.Value-!random.something'}
+            ]
         },
         'OldResourceProperties': {
             'Value':'Thing'

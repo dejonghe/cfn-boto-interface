@@ -91,8 +91,30 @@ def json_serial(obj):
 def remove_prefix(text, prefix):
     return text[text.startswith(prefix) and len(prefix):]
 
+# returns the modifier and text without modifier syntax
+def return_modifier(text):
+    modifiers = [ 'str', 'int', 'datetime' ]
+    for mod in modifiers:
+        mod_syntax = "!{}.".format(mod)
+        if mod_syntax in text:
+            return (mod,text.replace(mod_syntax,''))
+    return (None,text)
+
 # Injects random alphanumeric into value where trigger is found
 def inject_rand(text, trigger):
     while trigger in text:
         text = text.replace(trigger,''.join(random.choices(string.ascii_uppercase + string.digits, k=4)),1)
     return text
+
+def convert(value, type_):
+    import importlib
+    try:
+        # Check if it's a builtin type
+        module = importlib.import_module('builtins')
+        cls = getattr(module, type_)
+    except AttributeError:
+        # if not, separate module and class
+        module, type_ = type_.rsplit(".", 1)
+        module = importlib.import_module(module)
+        cls = getattr(module, type_)
+    return cls(value)
