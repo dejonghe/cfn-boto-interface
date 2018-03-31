@@ -91,6 +91,7 @@ class CfnBotoInterface(object):
                 if count != 0:
                     logger.info('trav-find')
                     self.current_var_fetch = place_holder
+                    logger.info("Var Fetch Find: {}".format(self.current_var_fetch))
                     self.commands = traverse_find(self.commands,"!{}".format(self.current_var_fetch),self.variable_fetch)
                     logger.info(self.commands)
                 command = self.commands[count]
