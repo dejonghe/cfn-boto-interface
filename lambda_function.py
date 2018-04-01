@@ -71,7 +71,7 @@ class CfnBotoInterface(object):
             self.commands = event['ResourceProperties'][self.action].get('Commands', None)
             logger.info("Commands: {}".format(self.commands))
             self.physical_resource_id = event['ResourceProperties'][self.action].get('PhysicalResourceId', 'None')
-            logger.info("Physical Resource Id: {}".format(self.commands))
+            logger.info("Physical Resource Id: {}".format(self.physical_resource_id))
             self.response_data = event['ResourceProperties'][self.action].get('ResponseData', {})
             logger.info("Response Data: {}".format(self.commands))
         except KeyError as e:
@@ -178,8 +178,8 @@ class CfnBotoInterface(object):
         return withrand
                 
     def send_status(self, PASS_OR_FAIL):
-        if self.physical_id_path:
-            traverse_modify(self.response_data,self.physical_id_path,self.set_buffer)
+        if self.physical_resource_id:
+            traverse_modify(self.response_data,self.physical_resource_id,self.set_buffer)
         else: 
             self.buff = str('None')
         self.response_data = urllib.parse.urlencode(self.response_data).encode('ascii')
