@@ -183,7 +183,7 @@ class CfnBotoInterface(object):
             traverse_modify(self.response_data,self.physical_resource_id,self.set_buffer)
         else: 
             self.buff = str('None')
-        self.response_data = urllib.parse.urlencode(self.response_data).encode('ascii')
+        #self.response_data = urllib.parse.urlencode(self.response_data).encode('ascii')
         send(
             self.raw_data,
             self.context,
