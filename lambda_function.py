@@ -58,8 +58,12 @@ class CfnBotoInterface(object):
             logger.info("Client: {}".format(client_type))
             self.physical_id_path = event['ResourceProperties'].get('PhysicalIdAttribute',None)
             logger.info("PhysicalIdAttribute: {}".format(self.physical_id_path))
-            self.commands = event['ResourceProperties'][action]
+            self.commands = event['ResourceProperties'][action]['Commands']
             logger.info("Commands: {}".format(self.commands))
+            self.physical_resource_id = event['ResourceProperties'][action]['PhysicalResourceId']
+            logger.info("Physical Resource Id: {}".format(self.commands))
+            self.response_data = event['ResourceProperties'][action]['ResponseData']
+            logger.info("Response Data: {}".format(self.commands))
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
@@ -94,6 +98,7 @@ class CfnBotoInterface(object):
                     self.current_var_fetch = place_holder
                     logger.info("Var Fetch Find: {}".format(self.current_var_fetch))
                     self.commands = traverse_find(self.commands,"!{}".format(self.current_var_fetch),self.variable_fetch)
+                    self.response_data = traverse_find(self.response_data,"!{}".format(self.current_var_fetch),self.variable_fetch)
                     logger.info(self.commands)
                 command = self.commands[count]
                 place_holder = "{}[{}]".format(action,count)
@@ -145,7 +150,7 @@ class CfnBotoInterface(object):
         if self.physical_id_path:
             traverse_modify(self.response_data,self.physical_id_path,self.set_buffer)
         else: 
-            self.buff = 'None'
+            self.buff = str('None')
         send(
             self.raw_data,
             self.context,
