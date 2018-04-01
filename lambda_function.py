@@ -57,7 +57,7 @@ class CfnBotoInterface(object):
             self.data = traverse_find(self.raw_data,self.prefix_random,self.interpolate_rand)
             self.data = traverse_find(self.data,self.prefix_event,self.template)
             logger.info("Templated Event: {}".format(self.data))
-        except KeyError as e:
+        except Exception as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Templating Event Data Failed: {}".format(e)
             logger.error(self.reason)
@@ -77,7 +77,7 @@ class CfnBotoInterface(object):
             logger.info("Physical Resource Id: {}".format(self.physical_resource_id))
             self.response_data = self.data['ResourceProperties'][self.action].get('ResponseData', {})
             logger.info("Response Data: {}".format(self.response_data))
-        except KeyError as e:
+        except Exception as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
             logger.error(self.reason)
@@ -98,7 +98,7 @@ class CfnBotoInterface(object):
                 session = boto3.session.Session()
             # Setup the client requested
             self.client = session.client(self.client_type)
-        except KeyError as e:
+        except Exception as e:
             # Client failed
             self.reason = "Setup Client Failed: {}".format(e)
             logger.error(self.reason)
@@ -126,7 +126,7 @@ class CfnBotoInterface(object):
                 self.response_data = traverse_find(self.response_data,"!{}".format(self.current_var_fetch),self.variable_fetch)
                 logger.info("Templated Command Set: {}".format(self.commands))
                 count = count + 1
-        except KeyError as e:
+        except Exception as e:
             # Commands failed 
             self.reason = "Commands Failed: {}".format(e)
             logger.error(self.reason)
@@ -170,7 +170,6 @@ class CfnBotoInterface(object):
                 PASS_OR_FAIL,
                 physical_resource_id=self.buff,
                 reason=self.reason,
-                #response_data=None
                 response_data=self.response_data
             )
         else:
