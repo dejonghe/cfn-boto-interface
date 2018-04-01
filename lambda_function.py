@@ -46,7 +46,7 @@ class CfnBotoInterface(object):
         self.raw_data = event
         self.context = context
         self.template_event()
-        self.set_attributes_from_event()
+        self.set_attributes_from_data()
         self.setup_client()
         self.run_commands()
         self.send_status(SUCCESS)
