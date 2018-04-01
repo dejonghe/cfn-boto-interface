@@ -45,31 +45,11 @@ class CfnBotoInterface(object):
         logger.debug("Event Received: {}".format(event))
         self.raw_data = event
         self.context = context
-        self.set_attributes_from_event(event)
         self.template_event()
+        self.set_attributes_from_event()
         self.setup_client()
         self.run_commands()
         self.send_status(SUCCESS)
-
-    def set_attributes_from_event(self, event):
-        try:
-            # Setup local Vars
-            self.action = event['RequestType']
-            logger.info("Action: {}".format(self.action))
-            self.client_type = event['ResourceProperties']['Service']
-            logger.info("Client: {}".format(self.client_type))
-            self.commands = event['ResourceProperties'][self.action].get('Commands', None)
-            logger.info("Commands: {}".format(self.commands))
-            self.physical_resource_id = event['ResourceProperties'][self.action].get('PhysicalResourceId', 'None')
-            logger.info("Physical Resource Id: {}".format(self.physical_resource_id))
-            self.response_data = event['ResourceProperties'][self.action].get('ResponseData', {})
-            logger.info("Response Data: {}".format(self.response_data))
-        except KeyError as e:
-            # If user did not pass the correct properties, return failed with error.
-            self.reason = "Missing required property: {}".format(e)
-            logger.error(self.reason)
-            self.send_status(FAILED)
-            return
 
     def template_event(self):
         try:
@@ -80,6 +60,26 @@ class CfnBotoInterface(object):
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Templating Event Data Failed: {}".format(e)
+            logger.error(self.reason)
+            self.send_status(FAILED)
+            return
+
+    def set_attributes_from_data(self):
+        try:
+            # Setup local Vars
+            self.action = self.data['RequestType']
+            logger.info("Action: {}".format(self.action))
+            self.client_type = self.data['ResourceProperties']['Service']
+            logger.info("Client: {}".format(self.client_type))
+            self.commands = self.data['ResourceProperties'][self.action].get('Commands', None)
+            logger.info("Commands: {}".format(self.commands))
+            self.physical_resource_id = self.data['ResourceProperties'][self.action].get('PhysicalResourceId', 'None')
+            logger.info("Physical Resource Id: {}".format(self.physical_resource_id))
+            self.response_data = self.data['ResourceProperties'][self.action].get('ResponseData', {})
+            logger.info("Response Data: {}".format(self.response_data))
+        except KeyError as e:
+            # If user did not pass the correct properties, return failed with error.
+            self.reason = "Missing required property: {}".format(e)
             logger.error(self.reason)
             self.send_status(FAILED)
             return
@@ -224,7 +224,7 @@ if __name__ == "__main__":
                     {
                         'Method': 'modify_launch_template',
                         'Arguments': {
-                            'LaunchTemplateName': 'TestingTemplate',
+                            'LaunchTemplateId': '!event.PhysicalResourceId',
                             'DefaultVersion': '!Update[0].!str.LaunchTemplateVersion.VersionNumber'
                         }
                     }

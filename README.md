@@ -5,45 +5,64 @@ This is a lambda function that aims to pass through functionality from Boto3 to 
 
 
 ## CFN Usage
+
+### Runtime
+* python3.6
+
+### CloudFormation
 Not shown in this example, you can use !event.OldResourceProperties.Instances[].InstanceId and the like to ease in updates and deletes. Better examples to come.
 
 ```json
-    "BotoInterface": {
-      "Type": "AWS::Lambda::Function",
-      "Properties": {
-        "Handler": "lambda_fuction.lambda_handler",
-        "Role": { "Ref" : "LambdaRoleArn" },
-        "Code": {
-          "S3Bucket" : { "Ref": "CloudToolsBucket" },
-          "S3Key" : { "Fn::Join": [ "/", [ { "Ref": "Release" }, "lambda/boto_interface.zip" ] ] }
-        },
-        "Timeout" : "60",
-        "Runtime": "python2.7"
-      }
-    },
-    "S3BucketFromBoto": {
-      "Condition": "LambdaAvailable",
-      "Type": "Custom::NumberAzs",
-      "Properties": {
-        "ServiceToken": { "Ref": "BotoInterface" }
-        "Service": "s3",
-        "CREATE": {
-          "Method": "create_bucket",
-          "Arguments": {
-            "Bucket": "cfnbotointerface"
-          }
-        },
-        "DELETE": {
-          "Method": "delete_bucket",
-          "Arguments": {
-            "Bucket": "cfnbotointerface"
-          }
-        },
-        "UPDATE": {
-          "Method": "update_bucket"
-        }
-      }
-    }
+  BotoInterface:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt "IAM.Outputs.BotoInterfaceArn"
+      Code:
+        S3Bucket: !Ref 'CloudToolsBucket'
+        S3Key: !Join [ '/', [ !Ref 'Release', 'lambda/cfn_boto_interface.zip' ] ]
+      Timeout: '60'
+      Runtime: python3.6
+  InstanceLaunchTemplate:
+    Type: Custom::InstanceLaunchTemplate
+    Properties:
+      ServiceToken: !GetAtt 'BotoInterface.Arn'
+      Service: ec2
+      Create:
+        PhysicalResourceId: '!Create[0].LaunchTemplate.LaunchTemplateId'
+        ResponseData:
+          LaunchTemplateVersion: '!Create[0].!str.LaunchTemplate.LatestVersionNumber'
+        Commands:
+          - Method: create_launch_template
+            Arguments:
+              LaunchTemplateName: TestingTemplate
+              LaunchTemplateData:
+                ImageId: !Ref 'AMI'
+                InstanceType: !Ref 'InstanceType'
+                KeyName: !Ref 'KeyPair'
+      Update:
+        PhysicalResourceId: '!Update[0].LaunchTemplateVersion.LaunchTemplateId'
+        ResponseData:
+          LaunchTemplateVersion: '!Update[0].!str.LaunchTemplateVersion.VersionNumber'
+        Commands:
+          - Method: create_launch_template_version
+            Arguments:
+              LaunchTemplateName: TestingTemplate
+              SourceVersion: 1
+              LaunchTemplateData:
+                ImageId: !Ref 'AMI'
+                InstanceType: !Ref 'InstanceType'
+                KeyName: !Ref 'KeyPair'
+          - Method: modify_launch_template
+            Arguments:
+              LaunchTemplateId: '!event.PhysicalResourceId'
+              DefaultVersion: '!Update[0].!str.LaunchTemplateVersion.VersionNumber'
+      Delete:
+        PhysicalResourceId: 'LaunchTemplate.LaunchTemplateId'
+        Commands:
+          - Method: delete_launch_template
+            Arguments:
+              LaunchTemplateId: '!event.PhysicalResourceId'
 
 ```
 
