@@ -3,19 +3,11 @@
 import argparse
 import boto3 
 import json
-import logging
 import urllib
 from cfnresponse import send, SUCCESS, FAILED
-from helper import traverse_find, traverse_modify, json_serial, remove_prefix, inject_rand, return_modifier, convert
+from helper import traverse_find, traverse_modify, to_path, json_serial, remove_prefix, inject_rand, return_modifier, convert
+from logger import logger
 
-# Setup logger
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
 
 class test_context(dict):
     '''This is a text context object used when running function locally'''
@@ -75,7 +67,7 @@ class CfnBotoInterface(object):
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
-            logger.info(self.reason)
+            logger.error(self.reason)
             self.send_status(FAILED)
             return
 
@@ -88,7 +80,7 @@ class CfnBotoInterface(object):
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Templating Event Data Failed: {}".format(e)
-            logger.info(self.reason)
+            logger.error(self.reason)
             self.send_status(FAILED)
             return
 
@@ -109,7 +101,7 @@ class CfnBotoInterface(object):
         except KeyError as e:
             # Client failed
             self.reason = "Setup Client Failed: {}".format(e)
-            logger.info(self.reason)
+            logger.error(self.reason)
             self.send_status(FAILED)
             return
 
@@ -119,13 +111,6 @@ class CfnBotoInterface(object):
             # This is the main call it calls the methods, on the client, with the arguments
             count = 0
             while count < len(self.commands):
-                if count != 0:
-                    logger.info('trav-find')
-                    self.current_var_fetch = place_holder
-                    logger.info("Var Fetch Find: {}".format(self.current_var_fetch))
-                    self.commands = traverse_find(self.commands,"!{}".format(self.current_var_fetch),self.variable_fetch)
-                    self.response_data = traverse_find(self.response_data,"!{}".format(self.current_var_fetch),self.variable_fetch)
-                    logger.info(self.commands)
                 command = self.commands[count]
                 place_holder = "{}[{}]".format(self.action,count)
                 method = command['Method']
@@ -135,11 +120,16 @@ class CfnBotoInterface(object):
                 response = getattr(self.client,method)(**arguments)
                 self.response_data[place_holder] = json.loads(json.dumps(response,default=json_serial))
                 logger.info("Response: {}".format(self.response_data))
+                self.current_var_fetch = place_holder
+                logger.info("Var Fetch Find: {}".format(self.current_var_fetch))
+                self.commands = traverse_find(self.commands,"!{}".format(self.current_var_fetch),self.variable_fetch)
+                self.response_data = traverse_find(self.response_data,"!{}".format(self.current_var_fetch),self.variable_fetch)
+                logger.info("Templated Command Set: {}".format(self.commands))
                 count = count + 1
         except KeyError as e:
             # Commands failed 
             self.reason = "Commands Failed: {}".format(e)
-            logger.info(self.reason)
+            logger.error(self.reason)
             self.send_status(FAILED)
             return
 
@@ -167,9 +157,11 @@ class CfnBotoInterface(object):
                 
     def send_status(self, PASS_OR_FAIL):
         if self.physical_resource_id:
-            traverse_modify(self.response_data,self.physical_resource_id,self.set_buffer)
+            logger.info('there is phsy id')
+            traverse_modify(self.response_data,to_path(remove_prefix(self.physical_resource_id,'!')),self.set_buffer)
         else: 
             self.buff = str('None')
+        logger.info("Physical Resource Id After Find: {}".format(self.buff))
         #self.response_data = urllib.parse.urlencode(self.response_data).encode('ascii')
         if not self.test:
             send(
@@ -192,7 +184,6 @@ def lambda_handler(event, context):
     boto_proxy = CfnBotoInterface(event,context)
 
 if __name__ == "__main__":
-    logger.setLevel(logging.INFO)
     parser = argparse.ArgumentParser(description='Lambda Function to provide pass through interface to CloudFormation.')
     parser.add_argument("-r","--region", help="Region in which to run.", default='us-east-1')
     parser.add_argument("-p","--profile", help="Profile name to use when connecting to aws.", default=None)

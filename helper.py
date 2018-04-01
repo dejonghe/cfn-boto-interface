@@ -1,6 +1,7 @@
 import random
 import string
 from datetime import date, datetime
+from logger import logger
 
 ####
 # The recursion and traversal was taken, and adapted slightly from nvie.com blog:
@@ -38,6 +39,12 @@ def traverse_modify(obj, target_path, action):
     target_path = to_path(target_path)
 
     def transformer(path, value):
+        logger.debug("Transformer: Path: {}".format(path))
+        logger.debug("Transformer: Path: Type: {}".format(type(path)))
+        logger.debug("Transformer: Target Path: {}".format(target_path))
+        logger.debug("Transformer: Target Path: Type: {}".format(type(target_path)))
+        logger.debug("Transformer: Value: {}".format(value))
+        logger.debug("Transformer: Value: Type: {}".format(type(value)))
         if path == target_path:
             return action(value)
         else:
