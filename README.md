@@ -27,28 +27,40 @@ Not shown in this example, you can use !event.OldResourceProperties.Instances[].
     Type: Custom::InstanceLaunchTemplate
     Properties:
       ServiceToken: !GetAtt 'BotoInterface.Arn'
+      # Tell the lambda to use the boto client for ec2 
       Service: ec2
+      # When a create event type is send to the lambda use this object
       Create:
+        # Sets the return PhysicalResourceId, used in Ref. Looks up the response of the first command 
         PhysicalResourceId: '!Create[0].LaunchTemplate.LaunchTemplateId'
+        # Sets the response data used with GetAtt's 
         ResponseData:
           LaunchTemplateVersion: '!Create[0].!str.LaunchTemplate.LatestVersionNumber'
+        # Array of commands to run.
         Commands:
+            # The method to call on the boto client
           - Method: create_launch_template
+            # The arguments that need to be passed to that method.
             Arguments:
-              LaunchTemplateName: TestingTemplate
+              LaunchTemplateName: TestingTemplate1
               LaunchTemplateData:
                 ImageId: !Ref 'AMI'
                 InstanceType: !Ref 'InstanceType'
                 KeyName: !Ref 'KeyPair'
       Update:
-        PhysicalResourceId: '!Update[0].LaunchTemplateVersion.LaunchTemplateId'
+        PhysicalResourceId: '!Update[1].LaunchTemplateVersion.LaunchTemplateId'
         ResponseData:
-          LaunchTemplateVersion: '!Update[0].!str.LaunchTemplateVersion.VersionNumber'
+          LaunchTemplateVersion: '!Update[1].!str.LaunchTemplateVersion.VersionNumber'
+          SourceVersion: '!Update[0].!str.LaunchTemplates[].DefaultVersionNumber'
         Commands:
+          - Method: describe_launch_templates
+            Arguments:
+              LaunchTemplateIds:
+                - '!event.PhysicalResourceId'
           - Method: create_launch_template_version
             Arguments:
-              LaunchTemplateName: TestingTemplate
-              SourceVersion: 1
+              LaunchTemplateId: '!event.PhysicalResourceId'
+              SourceVersion: '!Update[0].!str.LaunchTemplates[].DefaultVersionNumber'
               LaunchTemplateData:
                 ImageId: !Ref 'AMI'
                 InstanceType: !Ref 'InstanceType'
@@ -56,13 +68,14 @@ Not shown in this example, you can use !event.OldResourceProperties.Instances[].
           - Method: modify_launch_template
             Arguments:
               LaunchTemplateId: '!event.PhysicalResourceId'
-              DefaultVersion: '!Update[0].!str.LaunchTemplateVersion.VersionNumber'
+              DefaultVersion: '!Update[1].!str.LaunchTemplateVersion.VersionNumber'
       Delete:
         PhysicalResourceId: 'LaunchTemplate.LaunchTemplateId'
         Commands:
           - Method: delete_launch_template
             Arguments:
               LaunchTemplateId: '!event.PhysicalResourceId'
+
 
 ```
 
