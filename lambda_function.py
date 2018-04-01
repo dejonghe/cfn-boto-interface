@@ -143,7 +143,8 @@ class CfnBotoInterface(object):
                 logger.info("Method: {}".format(method))
                 arguments = command['Arguments']
                 logger.info("Arguments: {}".format(arguments))
-                self.response_data[place_holder] = json.loads(json.dumps(getattr(self.client,method)(**arguments),default=json_serial))
+                response = getattr(self.client,method)(**arguments)
+                self.response_data[place_holder] = json.loads(json.dumps(response,default=json_serial))
                 logger.info("Response: {}".format(self.response_data))
                 count = count + 1
         except KeyError as e:
@@ -190,7 +191,8 @@ class CfnBotoInterface(object):
             PASS_OR_FAIL,
             physical_resource_id=self.buff,
             reason=self.reason,
-            response_data=self.response_data
+            response_data=None
+            #response_data=self.response_data
         )
 
 
