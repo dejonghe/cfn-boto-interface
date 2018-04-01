@@ -45,6 +45,7 @@ class CfnBotoInterface(object):
     buff = None
     prefix_event = '!event.'
     prefix_random = '!random'
+    test = False
 
 
     # Initializes the object
@@ -56,11 +57,7 @@ class CfnBotoInterface(object):
         self.template_event()
         self.setup_client()
         self.run_commands()
-        if not isinstance(self.context,test_context):
-            # Success! 
-            self.send_status(SUCCESS)
-        else:
-            logger.info(self.response_data)
+        self.send_status(SUCCESS)
 
     def set_attributes_from_event(self, event):
         try:
@@ -79,10 +76,7 @@ class CfnBotoInterface(object):
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
             logger.info(self.reason)
-            if not isinstance(self.context, test_context):
-                self.send_status(FAILED)
-            else:
-                logger.info(self.reason)
+            self.send_status(FAILED)
             return
 
     def template_event(self):
@@ -95,10 +89,7 @@ class CfnBotoInterface(object):
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Templating Event Data Failed: {}".format(e)
             logger.info(self.reason)
-            if not isinstance(self.context, test_context):
-                self.send_status(FAILED)
-            else:
-                logger.info(self.reason)
+            self.send_status(FAILED)
             return
 
     def setup_client(self):
@@ -108,6 +99,7 @@ class CfnBotoInterface(object):
                 logger.debug('Using test_context')
                 logger.debug("Profile: {}".format(self.context.profile))
                 logger.debug("Region: {}".format(self.context.region))
+                self.test = True
                 session = boto3.session.Session(profile_name=self.context.profile,region_name=self.context.region)
             else:
                 # Sets up the session in lambda context
@@ -118,10 +110,7 @@ class CfnBotoInterface(object):
             # Client failed
             self.reason = "Setup Client Failed: {}".format(e)
             logger.info(self.reason)
-            if not isinstance(self.context, test_context):
-                self.send_status(FAILED)
-            else:
-                logger.info(self.reason)
+            self.send_status(FAILED)
             return
 
     def run_commands(self):
@@ -151,10 +140,7 @@ class CfnBotoInterface(object):
             # Commands failed 
             self.reason = "Commands Failed: {}".format(e)
             logger.info(self.reason)
-            if not isinstance(self.context, test_context):
-                self.send_status(FAILED)
-            else:
-                logger.info(self.reason)
+            self.send_status(FAILED)
             return
 
     def set_buffer(self, value):
@@ -185,16 +171,22 @@ class CfnBotoInterface(object):
         else: 
             self.buff = str('None')
         #self.response_data = urllib.parse.urlencode(self.response_data).encode('ascii')
-        send(
-            self.raw_data,
-            self.context,
-            PASS_OR_FAIL,
-            physical_resource_id=self.buff,
-            reason=self.reason,
-            response_data=None
-            #response_data=self.response_data
-        )
-
+        if not self.test:
+            send(
+                self.raw_data,
+                self.context,
+                PASS_OR_FAIL,
+                physical_resource_id=self.buff,
+                reason=self.reason,
+                response_data=None
+                #response_data=self.response_data
+            )
+        else:
+            #logger.info("Raw Type: {}: ".format(json.dumps(self.raw_data)))
+            logger.info("Context Type: {}: ".format(json.dumps(self.context)))
+            logger.info("PASS/FAIL Type: {}: ".format(json.dumps(PASS_OR_FAIL)))
+            logger.info("Physical Resource Id Type: {}: ".format(json.dumps(self.buff)))
+            logger.info("Response Data Type: {}: ".format(json.dumps(self.response_data)))
 
 def lambda_handler(event, context):
     boto_proxy = CfnBotoInterface(event,context)
