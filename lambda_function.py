@@ -178,8 +178,8 @@ class CfnBotoInterface(object):
                 PASS_OR_FAIL,
                 physical_resource_id=self.buff,
                 reason=self.reason,
-                response_data=None
-                #response_data=self.response_data
+                #response_data=None
+                response_data=self.response_data
             )
         else:
             #logger.info("Raw Type: {}: ".format(json.dumps(self.raw_data)))
