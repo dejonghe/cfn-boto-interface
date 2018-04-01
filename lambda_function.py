@@ -45,51 +45,87 @@ class CfnBotoInterface(object):
     prefix_event = '!event.'
     prefix_random = '!random'
 
+
     # Initializes the object
     def __init__(self,event,context):
         logger.debug("Event Received: {}".format(event))
         self.raw_data = event
         self.context = context
+        self.set_attributes_from_event(event)
+        self.template_event()
+        self.setup_client()
+        self.run_commands()
+        if not isinstance(self.context,test_context):
+            # Success! 
+            self.send_status(SUCCESS)
+        else:
+            logger.info(self.response_data)
+
+    def set_attributes_from_event(self, event):
         try:
             # Setup local Vars
-            action = event['RequestType']
-            logger.info("Action: {}".format(action))
-            client_type = event['ResourceProperties']['Service']
-            logger.info("Client: {}".format(client_type))
-            self.physical_id_path = event['ResourceProperties'].get('PhysicalIdAttribute',None)
-            logger.info("PhysicalIdAttribute: {}".format(self.physical_id_path))
-            self.commands = event['ResourceProperties'][action]['Commands']
+            self.action = event['RequestType']
+            logger.info("Action: {}".format(self.action))
+            self.client_type = event['ResourceProperties']['Service']
+            logger.info("Client: {}".format(self.client_type))
+            self.commands = event['ResourceProperties'][self.action].get('Commands', None)
             logger.info("Commands: {}".format(self.commands))
-            self.physical_resource_id = event['ResourceProperties'][action]['PhysicalResourceId']
+            self.physical_resource_id = event['ResourceProperties'][self.action].get('PhysicalResourceId', 'None')
             logger.info("Physical Resource Id: {}".format(self.commands))
-            self.response_data = event['ResourceProperties'][action]['ResponseData']
+            self.response_data = event['ResourceProperties'][self.action].get('ResponseData', {})
             logger.info("Response Data: {}".format(self.commands))
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
             logger.info(self.reason)
-            if self.context:
+            if not isinstance(self.context, test_context):
                 self.send_status(FAILED)
             else:
                 logger.info(self.reason)
             return
+
+    def template_event(self):
         try:
             # This is a set of calls to helper functions which templates out the arguments
             self.data = traverse_find(self.raw_data,self.prefix_random,self.interpolate_rand)
             self.data = traverse_find(self.data,self.prefix_event,self.template)
             logger.info("Templated Event: {}".format(self.data))
-            if isinstance(context,test_context):
+        except KeyError as e:
+            # If user did not pass the correct properties, return failed with error.
+            self.reason = "Templating Event Data Failed: {}".format(e)
+            logger.info(self.reason)
+            if not isinstance(self.context, test_context):
+                self.send_status(FAILED)
+            else:
+                logger.info(self.reason)
+            return
+
+    def setup_client(self):
+        try:
+            if isinstance(self.context,test_context):
                 # For testing use profile and region from test_context
                 logger.debug('Using test_context')
-                logger.debug("Profile: {}".format(context.profile))
-                logger.debug("Region: {}".format(context.region))
-                session = boto3.session.Session(profile_name=context.profile,region_name=context.region)
+                logger.debug("Profile: {}".format(self.context.profile))
+                logger.debug("Region: {}".format(self.context.region))
+                session = boto3.session.Session(profile_name=self.context.profile,region_name=self.context.region)
             else:
                 # Sets up the session in lambda context
                 session = boto3.session.Session()
             # Setup the client requested
-            self.client = session.client(client_type)
-            logger.info('Running...')
+            self.client = session.client(self.client_type)
+        except KeyError as e:
+            # Client failed
+            self.reason = "Setup Client Failed: {}".format(e)
+            logger.info(self.reason)
+            if not isinstance(self.context, test_context):
+                self.send_status(FAILED)
+            else:
+                logger.info(self.reason)
+            return
+
+    def run_commands(self):
+        try:
+            logger.info('Running Commands')
             # This is the main call it calls the methods, on the client, with the arguments
             count = 0
             while count < len(self.commands):
@@ -101,7 +137,7 @@ class CfnBotoInterface(object):
                     self.response_data = traverse_find(self.response_data,"!{}".format(self.current_var_fetch),self.variable_fetch)
                     logger.info(self.commands)
                 command = self.commands[count]
-                place_holder = "{}[{}]".format(action,count)
+                place_holder = "{}[{}]".format(self.action,count)
                 method = command['Method']
                 logger.info("Method: {}".format(method))
                 arguments = command['Arguments']
@@ -109,20 +145,15 @@ class CfnBotoInterface(object):
                 self.response_data[place_holder] = json.loads(json.dumps(getattr(self.client,method)(**arguments),default=json_serial))
                 logger.info("Response: {}".format(self.response_data))
                 count = count + 1
-            if not isinstance(context,test_context):
-                # Success! 
-                self.send_status(SUCCESS)
-            else:
-                logger.info(self.response_data)
-        except Exception as e:
-            self.reason = "Failed: {}".format(e)
+        except KeyError as e:
+            # Commands failed 
+            self.reason = "Commands Failed: {}".format(e)
             logger.info(self.reason)
-            if not isinstance(context,test_context):
+            if not isinstance(self.context, test_context):
                 self.send_status(FAILED)
             else:
                 logger.info(self.reason)
             return
-
 
     def set_buffer(self, value):
         self.buff = value
@@ -175,55 +206,60 @@ if __name__ == "__main__":
         'RequestType': 'Delete', 
         'ResourceProperties': { 
             'Service': 'ec2',
-            'Create': [
-                {
-                    'Method': 'create_launch_template',
-                    'Arguments': {
-                        'LaunchTemplateName': 'TestingTemplate',
-                        'LaunchTemplateData': {
-                            'ImageId': 'ami-cb17d8b6',
-                            'InstanceType': 't2.large',
-                            'KeyName': 'common-us-east-1'
+            'Create': {
+                'PhysicalResourceId': '!Create[0].LaunchTemplate.LaunchTemplateId',
+                'Commands': [
+                    {
+                        'Method': 'create_launch_template',
+                        'Arguments': {
+                            'LaunchTemplateName': 'TestingTemplate',
+                            'LaunchTemplateData': {
+                                'ImageId': 'ami-cb17d8b6',
+                                'InstanceType': 't2.large',
+                                'KeyName': 'common-us-east-1'
+                            }
                         }
                     }
-                }
-            ],
-            'Update': [
-                {
-                    'Method': 'create_launch_template_version',
-                    'Arguments': {
-                        'LaunchTemplateName': 'TestingTemplate',
-                        'SourceVersion': '1',
-                        'LaunchTemplateData': {
-                            'InstanceType': 't2.medium'
+                ]
+            },
+            'Update': {
+                'PhysicalResourceId': '!Update[0].LaunchTemplate.LaunchTemplateId',
+                'Commands': [
+                    {
+                        'Method': 'create_launch_template_version',
+                        'Arguments': {
+                            'LaunchTemplateName': 'TestingTemplate',
+                            'SourceVersion': '1',
+                            'LaunchTemplateData': {
+                                'InstanceType': 't2.medium'
+                            }
+                        }
+                    },
+                    {
+                        'Method': 'modify_launch_template',
+                        'Arguments': {
+                            'LaunchTemplateName': 'TestingTemplate',
+                            'DefaultVersion': '!Update[0].!str.LaunchTemplateVersion.VersionNumber'
                         }
                     }
-                },
-                {
-                    'Method': 'modify_launch_template',
-                    'Arguments': {
-                        'LaunchTemplateName': 'TestingTemplate',
-                        'DefaultVersion': '!Update[0].!str.LaunchTemplateVersion.VersionNumber'
+                ]
+            },
+            'Delete': {
+                'Commands': [
+                    {
+                        'Method': 'delete_launch_template',
+                        'Arguments': {
+                            'LaunchTemplateName': 'TestingTemplate',
+                        }
                     }
-                }
-            ],
-            'Delete': [
-                {
-                    'Method': 'delete_launch_template',
-                    'Arguments': {
-                        'LaunchTemplateName': 'TestingTemplate',
-                    }
-                }
-            ],
+                ]
+            },
             'OtherEvent': [
                  {'Method': '!event.OldResourceProperties.Value'}
             ],
             'OtherRand': [ 
                  {'!random.OldResourceProperties.Value-!random.something'}
             ]
-        },
-        'OldResourceProperties': {
-            'Value':'Thing'
         }
     })
     args = parser.parse_args()
