@@ -4,6 +4,7 @@ import argparse
 import boto3 
 import json
 import logging
+import urllib
 from cfnresponse import send, SUCCESS, FAILED
 from helper import traverse_find, traverse_modify, json_serial, remove_prefix, inject_rand, return_modifier, convert
 
@@ -73,7 +74,7 @@ class CfnBotoInterface(object):
             self.physical_resource_id = event['ResourceProperties'][self.action].get('PhysicalResourceId', 'None')
             logger.info("Physical Resource Id: {}".format(self.physical_resource_id))
             self.response_data = event['ResourceProperties'][self.action].get('ResponseData', {})
-            logger.info("Response Data: {}".format(self.commands))
+            logger.info("Response Data: {}".format(self.response_data))
         except KeyError as e:
             # If user did not pass the correct properties, return failed with error.
             self.reason = "Missing required property: {}".format(e)
