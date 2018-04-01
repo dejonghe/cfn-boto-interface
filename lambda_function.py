@@ -155,8 +155,8 @@ class CfnBotoInterface(object):
             self.raw_data,
             self.context,
             PASS_OR_FAIL,
-            physical_resource_id=self.buff.encode('utf-8'),
-            reason=self.reason.encode('utf-8'),
+            physical_resource_id=self.buff,
+            reason=self.reason,
             response_data=self.response_data
         )
 
