@@ -1,4 +1,4 @@
-# cfn_boto_interface
+# cfn-boto-interface
 
 ## Overview
 This is a lambda function that aims to pass through functionality from Boto3 to CloudFormation through a descriptive object. 
@@ -16,7 +16,7 @@ mkdir temp
 cp -r ./* temp/
 cd temp
 pip install -t . -r requirements.txt
-zip -r ../cfn_boto_interface.zip ./* 
+zip -r ../cfn-boto-interface.zip ./* 
 cd ..
 rm -rf temp
 ```
@@ -38,7 +38,7 @@ Create the lambda resource like so:
       Role: !GetAtt 'BotoInterfaceRole.Arn' # IAM Role Arn with sufficient privledges 
       Code:
         S3Bucket: !Ref 'CloudToolsBucket' # Bucket containing zip of packaged code
-        S3Key: !Join [ '/', [ !Ref 'Release', 'lambda/cfn_boto_interface.zip' ] ] # S3 Object key 
+        S3Key: !Join [ '/', [ !Ref 'Release', 'lambda/cfn-boto-interface.zip' ] ] # S3 Object key 
       Timeout: '60' # Set appropriate timeout for your function
       Runtime: python3.6 # Python3.6 Required
 ```
@@ -84,6 +84,8 @@ If a lookup returns a value in a type that you need to cast you can use the modi
 
 #### Secrets Manager
 Get secret string from secrets manager
+
+Note: Use GetAtt for secrets so that it doesnt show up in CFN console as PhysicalResourceId
 ```yaml
   SecretString:
     Type: Custom::FetchSecret
@@ -91,9 +93,9 @@ Get secret string from secrets manager
       ServiceToken: !GetAtt 'BotoInterface.Arn'
       # When a create event type is send to the lambda use this object
       Create:
-        PhysicalResourceId: '!Create[0].SecretString'
+        PhysicalResourceId: '!Create[0].VersionId' 
         ResponseData:
-          VersionId: '!Create[0].VersionId' 
+          Secret: '!Create[0].SecretString'
         Commands:
           - Client: secretsmanager
             Method: get_secret_value
