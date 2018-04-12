@@ -45,36 +45,36 @@ Once you have the lambda function you can call it with a custom resource, exampl
 ### Custom Resource Properties
 
 #### Top level properties
-    *ServiceToken:* (Required) - Arn of the Lambda Resource 
-    *Create*: ActionObject, described below
-    *Update*: ActionObject, described below
-    *Delete*: ActionObject, described below
+* ServiceToken: (Required) - Arn of the Lambda Resource 
+* Create: ActionObject, described below
+* Update: ActionObject, described below
+* Delete: ActionObject, described below
  
 #### ActionObject
-    *PhysicalResourceId:* Physical Id of this resource to return to CloudFormation for this action. Can use *Lookups*
-    *ResponseData:* Dict of key,value pairs to return to CloudFormation for this resource for this action, for use in GetAtt. Can use *Lookups*
-    *Commands:* Array of CommandObjects 
-    *Replace:* (Update Only) - Bool, will re run create, if a different PhysicalId is returned CloudFormation will send a Delete when Cleaning Up
+*PhysicalResourceId: Physical Id of this resource to return to CloudFormation for this action. Can use *Lookups*
+*ResponseData: Dict of key,value pairs to return to CloudFormation for this resource for this action, for use in GetAtt. Can use *Lookups*
+*Commands: Array of CommandObjects 
+*Replace: (Update Only) - Bool, will re run create, if a different PhysicalId is returned CloudFormation will send a Delete when Cleaning Up
 
 #### CommandObjects
-    *Client:* (Required) - Boto3 client name to use when creating a client example: 'ec2', or 'secretsmanager'
-    *Method:* (Required) - Method to call on the Boto3 client
-    *Arguments:* Dict of key,value pairs to pass to the method as keyword arguments.
+* Client: (Required) - Boto3 client name to use when creating a client example: 'ec2', or 'secretsmanager'
+* Method: (Required) - Method to call on the Boto3 client
+* Arguments: Dict of key,value pairs to pass to the method as keyword arguments.
 
 #### Lookups
 Lookups are denoted with a `!` prefix. The lookups traverse dict objects by use of `.` notation
-    `!event.`: Looks up a value in the event passed to the lambda from CloudFormation
-    `!Create[].`: (Create ActionObject Only) - Looks up a value from the return of the command at that index ran in the Create ActionObject
-    `!Update[].`: (Update ActionObject Only) - Looks up a value from the return of the command at that index ran in the Update ActionObject
-    `!Delete[].`: (Delete ActionObject Only) - Looks up a value from the return of the command at that index ran in the Delete ActionObject
+* `!event.`: Looks up a value in the event passed to the lambda from CloudFormation
+* `!Create[].`: (Create ActionObject Only) - Looks up a value from the return of the command at that index ran in the Create ActionObject
+* `!Update[].`: (Update ActionObject Only) - Looks up a value from the return of the command at that index ran in the Update ActionObject
+* `!Delete[].`: (Delete ActionObject Only) - Looks up a value from the return of the command at that index ran in the Delete ActionObject
 
 ##### Modifiers
 If a lookup returns a value in a type that you need to cast you can use the modifiers after the lookup notation.
-    `!int.`: Cast lookup to int
-    `!str.`: Cast lookup to str
+* `!int.`: Cast lookup to int
+* `!str.`: Cast lookup to str
 
 #### Interpolation
-    `!random`: Interpolates a random 4 AlphaNumeric string
+* `!random`: Interpolates a random 4 AlphaNumeric string
 
 
 ```yaml
