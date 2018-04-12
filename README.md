@@ -8,6 +8,9 @@ You can download a prebuilt lambda zip from the release section of this github r
 
 ### Building the Lambda Zip
 You probably have your own way of building lambda zips but this should work given you're using bash that has pip and zip commands.
+
+Make sure to update boto in the requirements file if you're looking for some new functionality
+
 ```bash
 mkdir temp
 cp -r ./* temp/
