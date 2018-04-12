@@ -77,6 +77,31 @@ If a lookup returns a value in a type that you need to cast you can use the modi
 * `!random`: Interpolates a random 4 AlphaNumeric string
 
 
+### Custom Resource Examples
+
+#### Secrets Manager
+Get secret string from secrets manager
+```yaml
+  SecretString:
+    Type: Custom::FetchSecret
+    Properties:
+      ServiceToken: !GetAtt 'BotoInterface.Arn'
+      # When a create event type is send to the lambda use this object
+      Create:
+        PhysicalResourceId: '!Create[0].SecretString'
+        ResponseData:
+          VersionId: '!Create[0].VersionId' 
+        Commands:
+          - Client: secretsmanager
+            Method: get_secret_value
+            Arguments: 
+              SecretId: !Ref 'SecretId'
+      Update:
+        Replace: 'True'
+```
+
+#### Instance Template:
+Manage an instance launch template (This is now supported by CFN natively, example purposes only, do not use)
 ```yaml
   InstanceLaunchTemplate:
     Type: Custom::InstanceLaunchTemplate
