@@ -1,34 +1,87 @@
 # cfn_boto_interface
 
 ## Overview
-This is a lambda function that aims to pass through functionality from Boto3 to CloudFormation. You're able to define in your CFN Custom Resource properties for each case, CREATE, UPDATE, and DELETE. All three of which are to set the same defined boto3 client. Each action object has two attributes method, and arguments. This also provides a way to reference other values in the lambda event.
+This is a lambda function that aims to pass through functionality from Boto3 to CloudFormation through a descriptive object. 
 
+## Lambda Zip
+You can download a prebuilt lambda zip from the release section of this github repository, or build your own.
+
+### Building the Lambda Zip
+You probably have your own way of building lambda zips but this should work given you're using bash that has pip and zip commands.
+```bash
+mkdir temp
+cp -r ./* temp/
+cd temp
+pip install -t . -r requirements.txt
+zip -r ../cfn_boto_interface.zip ./* 
+cd ..
+rm -rf temp
+```
+
+*Upload this zip file to a S3 bucket*
 
 ## CFN Usage
 
 ### Runtime
 * python3.6
 
-### CloudFormation
-Not shown in this example, you can use !event.OldResourceProperties.Instances[].InstanceId and the like to ease in updates and deletes. Better examples to come.
-
-```json
+### CloudFormation: Lambda Resource
+Create the lambda resource like so:
+```yaml
   BotoInterface:
     Type: AWS::Lambda::Function
     Properties:
       Handler: lambda_function.lambda_handler
-      Role: !GetAtt "IAM.Outputs.BotoInterfaceArn"
+      Role: !GetAtt 'BotoInterfaceRole.Arn' # IAM Role Arn with sufficient privledges 
       Code:
-        S3Bucket: !Ref 'CloudToolsBucket'
-        S3Key: !Join [ '/', [ !Ref 'Release', 'lambda/cfn_boto_interface.zip' ] ]
-      Timeout: '60'
-      Runtime: python3.6
+        S3Bucket: !Ref 'CloudToolsBucket' # Bucket containing zip of packaged code
+        S3Key: !Join [ '/', [ !Ref 'Release', 'lambda/cfn_boto_interface.zip' ] ] # S3 Object key 
+      Timeout: '60' # Set appropriate timeout for your function
+      Runtime: python3.6 # Python3.6 Required
+```
+
+Once you have the lambda function you can call it with a custom resource, examples below.
+
+### Custom Resource Properties
+
+#### Top level properties
+    *ServiceToken:* (Required) - Arn of the Lambda Resource 
+    *Create*: ActionObject, described below
+    *Update*: ActionObject, described below
+    *Delete*: ActionObject, described below
+ 
+#### ActionObject
+    *PhysicalResourceId:* Physical Id of this resource to return to CloudFormation for this action. Can use *Lookups*
+    *ResponseData:* Dict of key,value pairs to return to CloudFormation for this resource for this action, for use in GetAtt. Can use *Lookups*
+    *Commands:* Array of CommandObjects 
+    *Replace:* (Update Only) - Bool, will re run create, if a different PhysicalId is returned CloudFormation will send a Delete when Cleaning Up
+
+#### CommandObjects
+    *Client:* (Required) - Boto3 client name to use when creating a client example: 'ec2', or 'secretsmanager'
+    *Method:* (Required) - Method to call on the Boto3 client
+    *Arguments:* Dict of key,value pairs to pass to the method as keyword arguments.
+
+#### Lookups
+Lookups are denoted with a `!` prefix. The lookups traverse dict objects by use of `.` notation
+    `!event.`: Looks up a value in the event passed to the lambda from CloudFormation
+    `!Create[].`: (Create ActionObject Only) - Looks up a value from the return of the command at that index ran in the Create ActionObject
+    `!Update[].`: (Update ActionObject Only) - Looks up a value from the return of the command at that index ran in the Update ActionObject
+    `!Delete[].`: (Delete ActionObject Only) - Looks up a value from the return of the command at that index ran in the Delete ActionObject
+
+##### Modifiers
+If a lookup returns a value in a type that you need to cast you can use the modifiers after the lookup notation.
+    `!int.`: Cast lookup to int
+    `!str.`: Cast lookup to str
+
+#### Interpolation
+    `!random`: Interpolates a random 4 AlphaNumeric string
+
+
+```yaml
   InstanceLaunchTemplate:
     Type: Custom::InstanceLaunchTemplate
     Properties:
       ServiceToken: !GetAtt 'BotoInterface.Arn'
-      # Tell the lambda to use the boto client for ec2 
-      Service: ec2
       # When a create event type is send to the lambda use this object
       Create:
         # Sets the return PhysicalResourceId, used in Ref. Looks up the response of the first command 
@@ -39,7 +92,8 @@ Not shown in this example, you can use !event.OldResourceProperties.Instances[].
         # Array of commands to run.
         Commands:
             # The method to call on the boto client
-          - Method: create_launch_template
+          - Client: ec2
+            Method: create_launch_template
             # The arguments that need to be passed to that method.
             Arguments:
               LaunchTemplateName: TestingTemplate1
@@ -53,11 +107,13 @@ Not shown in this example, you can use !event.OldResourceProperties.Instances[].
           LaunchTemplateVersion: '!Update[1].!str.LaunchTemplateVersion.VersionNumber'
           SourceVersion: '!Update[0].!str.LaunchTemplates[].DefaultVersionNumber'
         Commands:
-          - Method: describe_launch_templates
+          - Client: ec2
+            Method: describe_launch_templates
             Arguments:
               LaunchTemplateIds:
                 - '!event.PhysicalResourceId'
-          - Method: create_launch_template_version
+          - Client: ec2
+            Method: create_launch_template_version
             Arguments:
               LaunchTemplateId: '!event.PhysicalResourceId'
               SourceVersion: '!Update[0].!str.LaunchTemplates[].DefaultVersionNumber'
@@ -65,17 +121,18 @@ Not shown in this example, you can use !event.OldResourceProperties.Instances[].
                 ImageId: !Ref 'AMI'
                 InstanceType: !Ref 'InstanceType'
                 KeyName: !Ref 'KeyPair'
-          - Method: modify_launch_template
+          - Client: ec2
+            Method: modify_launch_template
             Arguments:
               LaunchTemplateId: '!event.PhysicalResourceId'
               DefaultVersion: '!Update[1].!str.LaunchTemplateVersion.VersionNumber'
       Delete:
         PhysicalResourceId: 'LaunchTemplate.LaunchTemplateId'
         Commands:
-          - Method: delete_launch_template
+          - Client: ec2
+            Method: delete_launch_template
             Arguments:
               LaunchTemplateId: '!event.PhysicalResourceId'
-
 
 ```
 
@@ -103,8 +160,3 @@ optional arguments:
 
 
 
-## To Do
-
-Updates what do when require replacement
-should it be a list should attribute be marked etc. 
-if Action not defined do not key error just skip.

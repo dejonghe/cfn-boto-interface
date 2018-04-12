@@ -50,9 +50,8 @@ class CfnBotoInterface(object):
         self.set_attributes_from_data()
         self.setup_session()
         if self.action == 'Update' and bool(self.action_obj.get('Replace',False)):
-            logger.info('Replacement specified, running Create and Delete rather than Update')
+            logger.info('Replacement specified, running Create')
             self.run_commands('Create')
-            self.run_commands('Delete')
         else:
             self.run_commands(self.action)
         self._send_status(SUCCESS)
@@ -245,7 +244,6 @@ if __name__ == "__main__":
                 ]
             },
             'Update': {
-                'Replace': 'True',
                 'PhysicalResourceId': '!Update[1].LaunchTemplate.LaunchTemplateId',
                 'Commands': [
                     {

@@ -100,7 +100,7 @@ def remove_prefix(text, prefix):
 
 # returns the modifier and text without modifier syntax
 def return_modifier(text):
-    modifiers = [ 'str', 'int', 'datetime' ]
+    modifiers = [ 'str', 'int' ]
     for mod in modifiers:
         mod_syntax = "!{}.".format(mod)
         if mod_syntax in text:
