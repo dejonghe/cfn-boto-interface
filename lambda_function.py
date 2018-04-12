@@ -49,7 +49,12 @@ class CfnBotoInterface(object):
         self.template_event()
         self.set_attributes_from_data()
         self.setup_session()
-        self.run_commands()
+        if self.action == 'Update' and bool(self.action_obj.get('Replace',False)):
+            logger.info('Replacement specified, running Create and Delete rather than Update')
+            self.run_commands('Create')
+            self.run_commands('Delete')
+        else:
+            self.run_commands(self.action)
         self._send_status(SUCCESS)
 
     def template_event(self):
@@ -79,8 +84,6 @@ class CfnBotoInterface(object):
             self.action = self.data['RequestType']
             logger.info("Action: {}".format(self.action))
             self.action_obj = self.data['ResourceProperties'].get(self.action,{})
-            self.commands = self.action_obj.get('Commands', None)
-            logger.info("Commands: {}".format(self.commands))
             self.old_physical_resource_id = self.data.get('PhysicalResourceId', 'None')
             self.physical_resource_id = self.action_obj.get('PhysicalResourceId', self.old_physical_resource_id)
             logger.info("Physical Resource Id: {}".format(self.physical_resource_id))
@@ -117,19 +120,22 @@ class CfnBotoInterface(object):
             self._send_status(FAILED)
             return
 
-    def run_commands(self):
+    def run_commands(self,action):
         '''
         Loops over the Commands array, init a Command obj, and run
         After each command run, it will find and replace any tempalte looking for 
         that commands output values 
         '''
         try:
-            logger.info('Running Commands')
+            logger.info("Running Commands for {}".format(action))
+            action_obj = self.data['ResourceProperties'].get(action,{})
+            commands = action_obj.get('Commands', None)
+            logger.info("Commands: {}".format(commands))
             # This is the main call it calls the methods, on the client, with the arguments
             count = 0
-            while count < len(self.commands):
+            while count < len(commands):
                 # Use Command class to validate the command and run it
-                command = Command(self.session,self.commands[count])
+                command = Command(self.session,commands[count])
                 response = command.run()
                 # place_holder creates a key to hold the response in the response_data dict
                 place_holder = "{}[{}]".format(self.action,count)
@@ -138,9 +144,9 @@ class CfnBotoInterface(object):
                 logger.debug("Response: {}".format(self.response_data))
                 # This set traverses the commands looking for the place_holder and replaces it with the value 
                 self.current_var_fetch = place_holder
-                self.commands = traverse_find(self.commands,"!{}".format(self.current_var_fetch),self._variable_fetch)
+                commands = traverse_find(commands,"!{}".format(self.current_var_fetch),self._variable_fetch)
                 self.response_data = traverse_find(self.response_data,"!{}".format(self.current_var_fetch),self._variable_fetch)
-                logger.debug("Templated Command Set: {}".format(self.commands))
+                logger.debug("Templated Command Set: {}".format(commands))
                 count = count + 1
         except Exception as e:
             # Commands failed 
@@ -239,6 +245,7 @@ if __name__ == "__main__":
                 ]
             },
             'Update': {
+                'Replace': 'True',
                 'PhysicalResourceId': '!Update[1].LaunchTemplate.LaunchTemplateId',
                 'Commands': [
                     {
