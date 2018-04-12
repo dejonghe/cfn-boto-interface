@@ -51,10 +51,10 @@ Once you have the lambda function you can call it with a custom resource, exampl
 * Delete: ActionObject, described below
  
 #### ActionObject
-*PhysicalResourceId: Physical Id of this resource to return to CloudFormation for this action. Can use *Lookups*
-*ResponseData: Dict of key,value pairs to return to CloudFormation for this resource for this action, for use in GetAtt. Can use *Lookups*
-*Commands: Array of CommandObjects 
-*Replace: (Update Only) - Bool, will re run create, if a different PhysicalId is returned CloudFormation will send a Delete when Cleaning Up
+* PhysicalResourceId: Physical Id of this resource to return to CloudFormation for this action. Can use *Lookups*
+* ResponseData: Dict of key,value pairs to return to CloudFormation for this resource for this action, for use in GetAtt. Can use *Lookups*
+* Commands: Array of CommandObjects 
+* Replace: (Update Only) - Bool, will re run create, if a different PhysicalId is returned CloudFormation will send a Delete when Cleaning Up
 
 #### CommandObjects
 * Client: (Required) - Boto3 client name to use when creating a client example: 'ec2', or 'secretsmanager'
