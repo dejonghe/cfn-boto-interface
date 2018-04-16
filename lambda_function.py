@@ -64,8 +64,11 @@ class CfnBotoInterface(object):
         '''
         try:
             # This is a set of calls to helper functions which templates out the arguments
+            logger.info("Raw Event: {}".format(self.raw_data))
             self.data = traverse_find(self.raw_data,self.prefix_random,self._interpolate_rand)
             self.data = traverse_find(self.data,self.prefix_event,self._template)
+            for modifier in [ '!str.', '!int.' ]:
+                self.data = traverse_find(self.data,modifier,self._mod)
             logger.info("Templated Event: {}".format(self.data))
         except Exception as e:
             # If user did not pass the correct properties, return failed with error.
@@ -180,6 +183,12 @@ class CfnBotoInterface(object):
             return convert(self.buff,mod)
         return self.buff
 
+    def _mod(self, value):
+        mod, value = return_modifier(value)
+        if mod:
+            return convert(value,mod)
+        return value
+         
     def _interpolate_rand(self, value):
         '''
         Drops in a random number where !rand is found
