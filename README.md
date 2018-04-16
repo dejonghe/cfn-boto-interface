@@ -71,8 +71,8 @@ Lookups are denoted with a `!` prefix. The lookups traverse dict objects by use 
 * `!Update[].`: (Update ActionObject Only) - Looks up a value from the return of the command at that index ran in the Update ActionObject
 * `!Delete[].`: (Delete ActionObject Only) - Looks up a value from the return of the command at that index ran in the Delete ActionObject
 
-##### Modifiers
-If a lookup returns a value in a type that you need to cast you can use the modifiers after the lookup notation.
+#### Modifiers
+Modifiers can be used to convert your input into the type needed for the request. You can use these modifierd after a lookup or just at the begining of a value passed. You need these because CloudFormation casts everything to a string and boto sometimes needs integers, or boto will return an int but you need to cast it to a str.
 * `!int.`: Cast lookup to int
 * `!str.`: Cast lookup to str
 
